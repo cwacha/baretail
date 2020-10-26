@@ -11,12 +11,13 @@ function all {
     import
     #pkg
     nupkg
+    checksums
 }
 
 function _init {
     $global:app_pkgid = "baretail"
     $global:app_displayname = "Baretail"
-    $global:app_version = Get-ChildItem $BASEDIR\..\ext\*.zip | %{$_.Name -replace "baretail-", "" -replace "[a-z].zip", "" }
+    $global:app_version = Get-ChildItem $BASEDIR\..\ext\*.zip | %{$_.Name -replace "\S+-", "" -replace "[a-z]*.zip", "" }
     $global:app_revision = (git log --pretty=oneline).count
     $global:app_build = git rev-parse --short HEAD
 
@@ -69,6 +70,14 @@ function nupkg {
     cd PKG\nupkg
     choco pack -outputdirectory $BASEDIR\PKG
     cd $BASEDIR
+}
+
+function checksums {
+    "# checksums ..."
+    cd PKG
+    get-filehash *.zip,*.nupkg,*.msi | select Hash,@{l="File";e={split-path $_.Path -leaf}} | %{ "$($_.Hash) $($_.File)" } | Out-File -Encoding "UTF8" $app_pkgname-checksums-sha256.txt
+    Get-Content $app_pkgname-checksums-sha256.txt
+    cd ..
 }
 
 function clean {
