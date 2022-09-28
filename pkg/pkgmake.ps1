@@ -2,7 +2,7 @@ param (
     [string]$rule = ""
 )
 
-$BASEDIR=$PSScriptRoot
+$BASEDIR = $PSScriptRoot
 #echo BASEDIR=$BASEDIR
 
 function all {
@@ -17,8 +17,8 @@ function all {
 function _init {
     $global:app_pkgid = "baretail"
     $global:app_displayname = "Baretail"
-    $global:app_version = Get-ChildItem $BASEDIR\..\ext\*.zip | %{$_.Name -replace "\S+-", "" -replace "[a-z]*.zip", "" }
-    $global:app_revision = (git log --pretty=oneline).count
+    $global:app_version = Get-ChildItem $BASEDIR\..\ext\*.zip | % { $_.Name -replace "\S+-", "" -replace "[a-z]*.zip", "" }
+    $global:app_revision = git rev-list --count HEAD
     $global:app_build = git rev-parse --short HEAD
 
     $global:app_pkgname = "$app_pkgid-$app_version-$app_revision-$app_build"
@@ -28,12 +28,12 @@ function _template {
     param (
         [string] $inputfile
     )
-    Get-Content $inputfile | %{ $_ `
-        -replace "%app_pkgid%", "$app_pkgid" `
-        -replace "%app_version%", "$app_version" `
-        -replace "%app_displayname%", "$app_displayname" `
-        -replace "%app_revision%", "$app_revision" `
-        -replace "%app_build%", "$app_build"
+    Get-Content $inputfile | % { $_ `
+            -replace "%app_pkgid%", "$app_pkgid" `
+            -replace "%app_version%", "$app_version" `
+            -replace "%app_displayname%", "$app_displayname" `
+            -replace "%app_revision%", "$app_revision" `
+            -replace "%app_build%", "$app_build"
     }
 }
 
@@ -42,7 +42,7 @@ function import {
     mkdir BUILD/root -ea SilentlyContinue *> $null
 
     Expand-Archive -Path $BASEDIR\..\ext\*.zip -DestinationPath BUILD/root
-	cp -r -fo ..\src\* BUILD/root
+    cp -r -fo ..\src\* BUILD/root
 }
 
 function pkg {
@@ -75,7 +75,7 @@ function nupkg {
 function checksums {
     "# checksums ..."
     cd PKG
-    get-filehash *.zip,*.nupkg,*.msi | select Hash,@{l="File";e={split-path $_.Path -leaf}} | %{ "$($_.Hash) $($_.File)" } | Out-File -Encoding "UTF8" $app_pkgname-checksums-sha256.txt
+    Get-FileHash *.zip, *.nupkg, *.msi | Select-Object Hash, @{l = "File"; e = { split-path $_.Path -leaf } } | % { "$($_.Hash) $($_.File)" } | Out-File -Encoding "UTF8" $app_pkgname-checksums-sha256.txt
     Get-Content $app_pkgname-checksums-sha256.txt
     cd ..
 }
@@ -86,18 +86,21 @@ function clean {
     rm -r -fo -ea SilentlyContinue BUILD
 }
 
-$funcs = Select-String -Path $MyInvocation.MyCommand.Path -Pattern "^function ([^_]\S+) " | %{$_.Matches.Groups[1].Value}
-if(! $funcs.contains($rule)) {
+$funcs = Select-String -Path $MyInvocation.MyCommand.Path -Pattern "^function ([^_]\S+) " | % { $_.Matches.Groups[1].Value }
+if (! $funcs.contains($rule)) {
     "no such rule: '$rule'"
     ""
     "RULES"
-    $funcs | %{"    $_"}
+    $funcs | % { "    $_" }
     exit 1
 }
 
+Push-Location
 cd "$BASEDIR"
 _init
 
 "##### Executing rule '$rule'"
 & $rule $args
 "##### done"
+
+Pop-Location
